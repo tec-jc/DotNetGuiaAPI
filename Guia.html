@@ -1,0 +1,2477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <article class="markdown-body"><h1 class="atx" id="creacion-del-proyecto-adminproyectosapi">Creación del proyecto: AdminProyectosAPI</h1>
+<p>En esta guía se describen los pasos necesarios para crear el proyecto utilizando .NET Core 8, Visual Studio 2022 y SQL Server.</p>
+<h2 class="atx" id="comenzaremos-creando-la-base-de-datos">Comenzaremos creando la base de datos</h2>
+<p>Abrir el administrador de SQL Server, conectar y luego dar clic en el botón: Nueva consulta, abrir el script compartido de la base de datos y ejecutar.</p>
+<pre><code class="fenced-code-block language-T-SQL">-- creación de la base de datos
+create database AdminProyectosAPI;
+go
+
+use AdminProyectosAPI;
+
+-- creación de las tablas
+create table Categorias(
+Id int not null identity(1,1),
+Nombre nvarchar(50) not null,
+primary key(Id)
+);
+go
+
+create table Proyectos(
+Id int not null identity(1,1),
+IdCategoria int not null,
+Titulo nvarchar(100) not null,
+Descripcion nvarchar(250) not null,
+FechaInicio date not null,
+FechaFin date not null,
+primary key(Id),
+foreign key(IdCategoria) references Categorias(Id)
+);
+go
+
+create table Tareas(
+Id int not null identity(1,1),
+IdProyecto int not null,
+Nombre nvarchar(100) not null,
+Descripcion nvarchar(250) not null,
+Duracion nvarchar(50) not null,
+Estado tinyint not null,
+primary key(Id),
+foreign key(IdProyecto) references Proyectos(Id)
+);
+go
+
+create table Roles(
+Id int not null identity(1,1),
+Nombre nvarchar(50) not null,
+primary key(Id)
+);
+go
+
+create table Usuarios(
+Id int not null identity(1,1),
+IdRol int not null,
+Nombre nvarchar(50) not null,
+Apellido nvarchar(50) not null,
+Telefono nvarchar(20) not null,
+[Login] nvarchar(25) not null,
+Clave nvarchar(200) not null,
+primary key(Id),
+foreign key(IdRol) references Roles(Id)
+);
+go
+
+-- inserción de datos iniciales
+use AdminProyectosAPI;
+insert into Roles(nombre) values('Administrador');
+insert into Roles(nombre) values('Usuario');
+
+-- clave: sysadmin, usar encriptador en línea
+insert into Usuarios(idrol, nombre, apellido, telefono, login, clave) 
+values(1, 'Julio César', 'Tula', '67335298', 'jc-tula', '48a365b4ce1e322a55ae9017f3daf0c0');</code></pre>
+<h2 class="atx" id="crear-la-estructura-de-la-solucion-en-visual-studio">Crear la estructura de la solución en Visual Studio</h2>
+<p>Abrir Visual Studio y en su pantalla principal dar clic en el botón: Crear un proyecto, filtrar las plantillas disponibles colocando en la caja de búsqueda: Solución</p>
+<p><img alt="" src="images/2024-09-09-11-30-07-image.png"></p>
+<p>En la siguiente ventana se debe asignar nombre a la solución, colocar como nombre AdminProyectosAPI.</p>
+<p><img alt="" src="images/2024-09-09-11-31-55-image.png"></p>
+<p>Dar clic en el botón Crear, esto nos mostrará la solución abierta en Visual Studio.</p>
+<p><img alt="" src="images/2024-09-09-11-33-54-image.png"></p>
+<p>Ahora debemos agregar cada uno de los proyectos que constituyen las capas de nuestra solución, los proyectos a agregar son los siguientes:</p>
+<ul>
+<li><p>AdminProyectosAPI.EntidadesDeNegocio - biblioteca de clases</p>
+</li>
+<li><p>AdminProyectosAPI.AccesoADatos - biblioteca de clases</p>
+</li>
+<li><p>AdminProyectosAPI.LogicaDeNegocio - biblioteca de clases</p>
+</li>
+<li><p>AdminProyectosAPI.WebAPI - ASP.NET Core Web API</p>
+</li>
+</ul>
+<p><img alt="" src="images/2024-09-09-11-41-31-image.png"></p>
+<p><img alt="" src="images/2024-09-09-11-42-28-image.png"></p>
+<p>Seleccionar la versión de .NET adecuada</p>
+<p><img alt="" src="images/2024-09-09-11-42-56-image.png"></p>
+<p>Dar clic en el botón Crear, esto nos llevará a la solución en donde aparecerá el proyecto recién creado. Cuando el proyecto se crea también se crea una clase llamada Class1.cs, este archivo lo debemos borrar.</p>
+<p><img alt="" src="images/2024-09-09-11-45-10-image.png"></p>
+<p>Repetir el proceso para agregar los proyectos AccesoADatos y LogicaDeNegocio.</p>
+<p><img alt="" src="images/2024-09-09-11-47-24-image.png"></p>
+<p>Para el proyecto de la WebAPI, necesitamos agregar un proyecto de tipo ASP.NET core WebAPI</p>
+<p><img alt="" src="images/2024-09-09-13-29-17-image.png"></p>
+<p><img alt="" src="images/2024-09-09-13-30-15-image.png"></p>
+<p><img alt="" src="images/2024-09-09-13-31-28-image.png"></p>
+<p>Para finalizar la creación dar clic en el botón Crear</p>
+<p><img alt="" src="images/2024-09-09-13-32-42-image.png"></p>
+<p>Se debe establecer el proyecto de la WebAPI como proyecto de inicio. Además, hay que establecer las dependencias entre las capas de la solución:</p>
+<ul>
+<li><p>EntidadesDeNegocio - No tiene dependencias de proyectos</p>
+</li>
+<li><p>AccesoADatos - Depencias: EntidadesDeNegocio</p>
+</li>
+<li><p>LogicaDeNegocio -Dependencias: EntidadesDeNegocio y AccesoADatos</p>
+</li>
+<li><p>WebAPI - Dependencias: EntidadesDeNegocio y LogicaDeNegocio</p>
+</li>
+</ul>
+<p><img alt="" src="images/2024-09-09-13-42-23-image.png"></p>
+<p>Con este paso finalizamos la creación de la estructura de la solución.</p>
+<h2 class="atx" id="construccion-de-la-capa-de-entidades-de-negocio">Construcción de la capa de Entidades de Negocio</h2>
+<p>Comenzaremos agregando las clases correspondientes a nuestras tablas de la base de datos:</p>
+<ul>
+<li><p>Categoria</p>
+</li>
+<li><p>Proyecto</p>
+</li>
+<li><p>Tarea</p>
+</li>
+<li><p>Rol</p>
+</li>
+<li><p>Usuario</p>
+</li>
+</ul>
+<p><img alt="" src="images/2024-09-09-13-53-22-image.png"></p>
+<p>Cerciorarse que cada una de las clases tenga asignado el modificador de acceso: public, vamos a colocar el código en cada una de las clases:</p>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.EntidadesDeNegocio
+{
+    public class Categoria
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public string? Nombre { get; set; }
+
+        [NotMapped]
+        public int Top_Aux { get; set; }
+
+        [NotMapped]
+        public List&lt;Proyecto&gt;? Proyectos { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.EntidadesDeNegocio
+{
+    public class Proyecto
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [ForeignKey("Categoria")]
+        public int IdCategoria { get; set; }
+
+        public string? Titulo { get; set; }
+
+        public string? Descripcion { get; set; }
+
+        public DateOnly FechaInicio { get; set; }
+
+        public DateOnly FechaFin { get; set; }
+
+        [NotMapped]
+        public int Top_Aux { get; set; }
+
+        public Categoria? Categoria { get; set; }
+
+        public List&lt;Tarea&gt;? Tareas { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.EntidadesDeNegocio
+{
+    public class Tarea
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [ForeignKey("Proyecto")]
+        public int IdProyecto { get; set; }
+
+        public string? Nombre { get; set; }
+
+        public string? Descripcion { get; set; }
+
+        public string? Duracion { get; set; }
+
+        public byte Estado { get; set; }
+
+        [NotMapped]
+        public int Top_Aux { get; set; }
+
+        public Proyecto? Proyecto { get; set; }
+    }
+
+    public enum Estado_Tarea
+    {
+        APROBADA = 1,
+        PROCESO = 2,
+        REVISION = 3,
+        FINALIZADA = 4
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.EntidadesDeNegocio
+{
+    public class Rol
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public string? Nombre { get; set; }
+
+        [NotMapped]
+        public int Top_Aux { get; set; }
+
+        [NotMapped]
+        public List&lt;Usuario&gt;? Usuarios { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.EntidadesDeNegocio
+{
+    public class Usuario
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [ForeignKey("Rol")]
+        public int IdRol { get; set; }
+
+        public string? Nombre { get; set; }
+
+        public string? Apellido { get; set; }
+
+        public string? Telefono { get; set; }
+
+        public string? Login { get; set; }
+
+        public string? Clave { get; set; }
+
+        [NotMapped]
+        public int Top_Aux { get; set; }
+
+        public Rol? Rol { get; set; }
+    }
+}</code></pre>
+<h2 class="atx" id="construccion-de-la-capa-de-acceso-a-datos">Construcción de la Capa de Acceso a Datos</h2>
+<p>Ante de comenzar la codificación de las clases de Acceso a Datos debemos instalar los paquetes Nuget necesarios para trabajar con Entity Framework Core.Para ello damos clic derecho sobre la carpeta dependencias del proyecto AccesoADatos, después seleccionamos la opción Administrar paquetes Nuget</p>
+<p><img alt="" src="images/2024-09-09-14-38-15-image.png"></p>
+<p>Al abrirse el administrador, debemos cambiarnos a la pestaña Examinar y en ella buscaremos: EntityFrameworkCore</p>
+<p><img alt="" src="images/2024-09-09-14-40-35-image.png"></p>
+<p>Necesitamos instalar los dos paquetes que aparecen señalados en la imagen anterior, tener en consideración la versión adecuada según la versión de .NET con que estemos trabajando.</p>
+<p>Luego de haber instalado los paquetes de EntityFramework, vamos a crear las clases siguientes:</p>
+<ul>
+<li><p>ContextoDb</p>
+</li>
+<li><p>CategoriaDAL</p>
+</li>
+<li><p>ProyectoDAL</p>
+</li>
+<li><p>TareaDAL</p>
+</li>
+<li><p>RolDAL</p>
+</li>
+<li><p>UsuarioDAL</p>
+</li>
+</ul>
+<p>Cerciorarse que todas las clases agregadas tengan el ámbito de acceso: public</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class ContextoDb : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlServer(@"Data Source = JC-PC;
+                                            Initial Catalog = AdminProyectosAPI;
+                                            Integrated Security = True; 
+                                            encrypt = false; 
+                                            trustServerCertificate = True");
+        }
+
+        public DbSet&lt;Categoria&gt; Categorias { get; set; }
+        public DbSet&lt;Proyecto&gt; Proyectos { get; set; }
+        public DbSet&lt;Tarea&gt; Tareas { get; set; }
+        public DbSet&lt;Rol&gt; Roles { get; set; }
+        public DbSet&lt;Usuario&gt; Usuarios { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class CategoriaDAL
+    {
+        public static async Task&lt;int&gt; CrearAsync(Categoria categoria)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                bdContexto.Add(categoria);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; ModificarAsync(Categoria categoria)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var categoriaBd = await bdContexto.Categorias.FirstOrDefaultAsync(c =&gt; c.Id == categoria.Id);
+                if (categoriaBd != null)
+                {
+                    categoriaBd.Nombre = categoria.Nombre;
+                    bdContexto.Update(categoriaBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;int&gt; EliminarAsync(Categoria categoria)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var categoriaBd = await bdContexto.Categorias.FirstOrDefaultAsync(c =&gt; c.Id == categoria.Id);
+                if (categoriaBd != null)
+                {
+                    bdContexto.Categorias.Remove(categoriaBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;List&lt;Categoria&gt;&gt; ObtenerTodosAsync()
+        {
+            var categorias = new List&lt;Categoria&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                categorias = await bdContexto.Categorias.ToListAsync();
+            }
+            return categorias;
+        }
+
+        public static async Task&lt;Categoria&gt; ObtenerPorIdAsync(Categoria categoria)
+        {
+            var categoriaDb = new Categoria();
+            using (var bdContexto = new ContextoDb())
+            {
+                categoriaDb = await bdContexto.Categorias.FirstOrDefaultAsync(c =&gt; c.Id == categoria.Id);
+                if (categoriaDb != null)
+                    return categoriaDb;
+            }
+            return categoriaDb;
+        }
+
+        internal static IQueryable&lt;Categoria&gt; QuerySelect(IQueryable&lt;Categoria&gt; query, Categoria categoria)
+        {
+            if (categoria.Id &gt; 0)
+                query = query.Where(c =&gt; c.Id == categoria.Id);
+
+            if (!string.IsNullOrWhiteSpace(categoria.Nombre))
+                query = query.Where(c =&gt; c.Nombre.Contains(categoria.Nombre));
+
+            query = query.OrderByDescending(c =&gt; c.Id).AsQueryable();
+
+            if (categoria.Top_Aux &gt; 0)
+                query = query.Take(categoria.Top_Aux).AsQueryable();
+
+            return query;
+        }
+
+        public static async Task&lt;List&lt;Categoria&gt;&gt; BuscarAsync(Categoria categoria)
+        {
+            var categorias = new List&lt;Categoria&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Categorias.AsQueryable();
+                select = QuerySelect(select, categoria);
+                categorias = await select.ToListAsync();
+            }
+            return categorias;
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class ProyectoDAL
+    {
+        public static async Task&lt;int&gt; CrearAsync(Proyecto proyecto)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                bdContexto.Add(proyecto);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; ModificarAsync(Proyecto proyecto)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var proyectoBd = await bdContexto.Proyectos.FirstOrDefaultAsync(c =&gt; c.Id == proyecto.Id);
+                if (proyectoBd != null)
+                {
+                    proyectoBd.IdCategoria = proyecto.IdCategoria;
+                    proyectoBd.Titulo = proyecto.Titulo;
+                    proyectoBd.Descripcion = proyecto.Descripcion;
+                    proyectoBd.FechaInicio = proyecto.FechaInicio;
+                    proyectoBd.FechaFin = proyecto.FechaFin;
+                    bdContexto.Update(proyectoBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;int&gt; EliminarAsync(Proyecto proyecto)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var proyectoBd = await bdContexto.Proyectos.FirstOrDefaultAsync(c =&gt; c.Id == proyecto.Id);
+                if (proyectoBd != null)
+                {
+                    bdContexto.Proyectos.Remove(proyectoBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;List&lt;Proyecto&gt;&gt; ObtenerTodosAsync()
+        {
+            var proyectos = new List&lt;Proyecto&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                proyectos = await bdContexto.Proyectos.ToListAsync();
+            }
+            return proyectos;
+        }
+
+        public static async Task&lt;Proyecto&gt; ObtenerPorIdAsync(Proyecto proyecto)
+        {
+            var proyectoDb = new Proyecto();
+            using (var bdContexto = new ContextoDb())
+            {
+                proyectoDb = await bdContexto.Proyectos.Include(p =&gt; p.Categoria).FirstOrDefaultAsync(p =&gt; p.Id == proyecto.Id);
+                if (proyectoDb != null)
+                    return proyectoDb;
+            }
+            return proyectoDb;
+        }
+
+        internal static IQueryable&lt;Proyecto&gt; QuerySelect(IQueryable&lt;Proyecto&gt; query, Proyecto proyecto)
+        {
+            if (proyecto.Id &gt; 0)
+                query = query.Where(p =&gt; p.Id == proyecto.Id);
+
+            if (!string.IsNullOrWhiteSpace(proyecto.Titulo))
+                query = query.Where(p =&gt; p.Titulo.Contains(proyecto.Titulo));
+
+            if (!string.IsNullOrWhiteSpace(proyecto.Descripcion))
+                query = query.Where(p =&gt; p.Descripcion.Contains(proyecto.Descripcion));
+
+            if (proyecto.FechaInicio.Year &gt; 1900)
+                query = query.Where(p =&gt; p.FechaInicio == proyecto.FechaInicio);
+
+            if (proyecto.FechaFin.Year &gt; 1900)
+                query = query.Where(p =&gt; p.FechaFin == proyecto.FechaFin);
+
+            query = query.OrderByDescending(p =&gt; p.Id).AsQueryable();
+
+            if (proyecto.Top_Aux &gt; 0)
+                query = query.Take(proyecto.Top_Aux).AsQueryable();
+
+            return query;
+        }
+
+        public static async Task&lt;List&lt;Proyecto&gt;&gt; BuscarAsync(Proyecto proyecto)
+        {
+            var proyectos = new List&lt;Proyecto&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Proyectos.AsQueryable();
+                select = QuerySelect(select, proyecto);
+                proyectos = await select.ToListAsync();
+            }
+            return proyectos;
+        }
+
+        public static async Task&lt;List&lt;Proyecto&gt;&gt; BuscarIncluirCategoriaAsync(Proyecto proyecto)
+        {
+            var proyectos = new List&lt;Proyecto&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Proyectos.AsQueryable();
+                select = QuerySelect(select, proyecto).Include(p =&gt; p.Categoria).AsQueryable();
+                proyectos = await select.ToListAsync();
+            }
+            return proyectos;
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class TareaDAL
+    {
+        public static async Task&lt;int&gt; CrearAsync(Tarea tarea)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                tarea.Estado = (byte)Estado_Tarea.APROBADA;
+                bdContexto.Add(tarea);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; ModificarAsync(Tarea tarea)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var tareaBd = await bdContexto.Tareas.FirstOrDefaultAsync(c =&gt; c.Id == tarea.Id);
+                if (tareaBd != null)
+                {
+                    tareaBd.IdProyecto = tarea.IdProyecto;
+                    tareaBd.Nombre = tarea.Nombre;
+                    tareaBd.Descripcion = tarea.Descripcion;
+                    tareaBd.Duracion = tarea.Duracion;
+
+                    bdContexto.Update(tareaBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;int&gt; CambiarEstadoAsync(Tarea tarea)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var tareaBd = await bdContexto.Tareas.FirstOrDefaultAsync(c =&gt; c.Id == tarea.Id);
+                if (tareaBd != null)
+                {
+                    tareaBd.Estado = tarea.Estado;
+                    bdContexto.Update(tareaBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;int&gt; EliminarAsync(Tarea tarea)
+        {
+            var result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var tareaBd = await bdContexto.Tareas.FirstOrDefaultAsync(c =&gt; c.Id == tarea.Id);
+                if (tareaBd != null)
+                {
+                    bdContexto.Tareas.Remove(tareaBd);
+                    result = await bdContexto.SaveChangesAsync();
+                }
+                return result;
+            }
+        }
+
+        public static async Task&lt;List&lt;Tarea&gt;&gt; ObtenerTodosAsync()
+        {
+            var tareas = new List&lt;Tarea&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                tareas = await bdContexto.Tareas.ToListAsync();
+            }
+            return tareas;
+        }
+
+        public static async Task&lt;Tarea&gt; ObtenerPorIdAsync(Tarea tarea)
+        {
+            var tareaDb = new Tarea();
+            using (var bdContexto = new ContextoDb())
+            {
+                tareaDb = await bdContexto.Tareas.Include(t =&gt; t.Proyecto).FirstOrDefaultAsync(c =&gt; c.Id == tarea.Id);
+                if (tareaDb != null)
+                    return tareaDb;
+            }
+            return tareaDb;
+        }
+
+        public static async Task&lt;List&lt;Tarea&gt;&gt; ObtenerPorIdProyectoAsync(int id)
+        {
+            var tareas = new List&lt;Tarea&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                tareas = await bdContexto.Tareas.Where(t =&gt; t.IdProyecto == id).ToListAsync();
+            }
+            return tareas;
+        }
+
+        internal static IQueryable&lt;Tarea&gt; QuerySelect(IQueryable&lt;Tarea&gt; query, Tarea tarea)
+        {
+            if (tarea.Id &gt; 0)
+                query = query.Where(t =&gt; t.Id == tarea.Id);
+
+            if (!string.IsNullOrWhiteSpace(tarea.Nombre))
+                query = query.Where(t =&gt; t.Nombre.Contains(tarea.Nombre));
+
+            if (!string.IsNullOrWhiteSpace(tarea.Descripcion))
+                query = query.Where(t =&gt; t.Descripcion.Contains(tarea.Descripcion));
+
+            if (!string.IsNullOrWhiteSpace(tarea.Duracion))
+                query = query.Where(t =&gt; t.Duracion.Contains(tarea.Duracion));
+
+            if (tarea.Estado &gt; 0)
+                query = query.Where(t =&gt; t.Estado == tarea.Estado);
+
+            query = query.OrderByDescending(t =&gt; t.Id).AsQueryable();
+
+            if (tarea.Top_Aux &gt; 0)
+                query = query.Take(tarea.Top_Aux).AsQueryable();
+
+            return query;
+        }
+
+        public static async Task&lt;List&lt;Tarea&gt;&gt; BuscarAsync(Tarea tarea)
+        {
+            var tareas = new List&lt;Tarea&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Tareas.AsQueryable();
+                select = QuerySelect(select, tarea);
+                tareas = await select.ToListAsync();
+            }
+            return tareas;
+        }
+
+        public static async Task&lt;List&lt;Tarea&gt;&gt; BuscarIncluirProyectoAsync(Tarea tarea)
+        {
+            var tareas = new List&lt;Tarea&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Tareas.AsQueryable();
+                select = QuerySelect(select, tarea).Include(t =&gt; t.Proyecto).AsQueryable();
+                tareas = await select.ToListAsync();
+            }
+            return tareas;
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class RolDAL
+    {
+        public static async Task&lt;int&gt; CrearAsync(Rol rol)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                bdContexto.Add(rol);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; ModificarAsync(Rol rol)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var rolBd = await bdContexto.Roles.FirstOrDefaultAsync(r =&gt; r.Id == rol.Id);
+                rolBd.Nombre = rol.Nombre;
+                bdContexto.Update(rolBd);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; EliminarAsync(Rol rol)
+        {
+            int result = 0;
+            using (var bdContexto = new ContextoDb())
+            {
+                var rolBd = await bdContexto.Roles.FirstOrDefaultAsync(r =&gt; r.Id == rol.Id);
+                bdContexto.Roles.Remove(rolBd);
+                result = await bdContexto.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;Rol&gt; ObtenerPorIdAsync(Rol rol)
+        {
+            var rolBd = new Rol();
+            using (var bdContexto = new ContextoDb())
+            {
+                rolBd = await bdContexto.Roles.FirstOrDefaultAsync(r =&gt; r.Id == rol.Id);
+            }
+            return rolBd;
+        }
+
+        public static async Task&lt;List&lt;Rol&gt;&gt; ObtenerTodosAsync()
+        {
+            var roles = new List&lt;Rol&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                roles = await bdContexto.Roles.ToListAsync();
+            }
+            return roles;
+        }
+
+        internal static IQueryable&lt;Rol&gt; QuerySelect(IQueryable&lt;Rol&gt; query, Rol rol)
+        {
+            if (rol.Id &gt; 0)
+                query = query.Where(r =&gt; r.Id == rol.Id);
+
+            if (!string.IsNullOrWhiteSpace(rol.Nombre))
+                query = query.Where(r =&gt; r.Nombre.Contains(rol.Nombre));
+
+            query = query.OrderByDescending(r =&gt; r.Id).AsQueryable();
+
+            if (rol.Top_Aux &gt; 0)
+                query = query.Take(rol.Top_Aux).AsQueryable();
+
+            return query;
+        }
+
+        public static async Task&lt;List&lt;Rol&gt;&gt; BuscarAsync(Rol rol)
+        {
+            var roles = new List&lt;Rol&gt;();
+            using (var bdContexto = new ContextoDb())
+            {
+                var select = bdContexto.Roles.AsQueryable();
+                select = QuerySelect(select, rol);
+                roles = await select.ToListAsync();
+            }
+            return roles;
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace AdminProyectosAPI.AccesoADatos
+{
+    public class UsuarioDAL
+    {
+        private static void EncriptarMD5(Usuario usuario)
+        {
+            using (var md5 = MD5.Create())
+            {
+                var result = md5.ComputeHash(Encoding.ASCII.GetBytes(usuario.Clave));
+                var strEncriptado = "";
+                for (int i = 0; i &lt; result.Length; i++)
+                    strEncriptado += result[i].ToString("x2").ToLower();
+                usuario.Clave = strEncriptado;
+            }
+        }
+
+        private static async Task&lt;bool&gt; ExisteLogin(Usuario usuario, ContextoDb pDbContext)
+        {
+            bool result = false;
+            var loginUsuarioExiste = await pDbContext.Usuarios.FirstOrDefaultAsync(s =&gt; s.Login == usuario.Login &amp;&amp; s.Id != usuario.Id);
+            if (loginUsuarioExiste != null &amp;&amp; loginUsuarioExiste.Id &gt; 0 &amp;&amp; loginUsuarioExiste.Login == usuario.Login)
+                result = true;
+            return result;
+        }
+
+        public static async Task&lt;int&gt; CrearAsync(Usuario usuario)
+        {
+            int result = 0;
+            using (var contextoDb = new ContextoDb())
+            {
+                bool existeLogin = await ExisteLogin(usuario, contextoDb);
+                if (existeLogin == false)
+                {
+                    EncriptarMD5(usuario);
+                    contextoDb.Add(usuario);
+                    result = await contextoDb.SaveChangesAsync();
+                }
+                else
+                    throw new Exception("Login ya existe");
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; ModificarAsync(Usuario usuario)
+        {
+            int result = 0;
+            using (var contextoDb = new ContextoDb())
+            {
+                bool existeLogin = await ExisteLogin(usuario, contextoDb);
+                if (existeLogin == false)
+                {
+                    var usuarioBd = await contextoDb.Usuarios.FirstOrDefaultAsync(s =&gt; s.Id == usuario.Id);
+                    usuarioBd.IdRol = usuario.IdRol;
+                    usuarioBd.Nombre = usuario.Nombre;
+                    usuarioBd.Apellido = usuario.Apellido;
+                    usuarioBd.Login = usuario.Login;
+                    contextoDb.Update(usuario);
+                    result = await contextoDb.SaveChangesAsync();
+                }
+                else
+                    throw new Exception("Login ya existe");
+            }
+            return result;
+        }
+
+        public static async Task&lt;int&gt; EliminarAsync(Usuario usuario)
+        {
+            int result = 0;
+            using (var contextoDb = new ContextoDb())
+            {
+                var usuarioBd = await contextoDb.Usuarios.FirstOrDefaultAsync(s =&gt; s.Id == usuario.Id);
+                contextoDb.Usuarios.Remove(usuarioBd);
+                result = await contextoDb.SaveChangesAsync();
+            }
+            return result;
+        }
+
+        public static async Task&lt;Usuario&gt; ObtenerPorIdAsync(Usuario usuario)
+        {
+            var usuarioBd = new Usuario();
+            using (var ContextoDb = new ContextoDb())
+            {
+                usuarioBd = await ContextoDb.Usuarios.FirstOrDefaultAsync(s =&gt; s.Id == usuario.Id);
+            }
+            return usuario;
+        }
+
+        public static async Task&lt;List&lt;Usuario&gt;&gt; ObtenerTodosAsync()
+        {
+            var usuarios = new List&lt;Usuario&gt;();
+            using (var ContextoDb = new ContextoDb())
+            {
+                usuarios = await ContextoDb.Usuarios.ToListAsync();
+            }
+            return usuarios;
+        }
+
+        internal static IQueryable&lt;Usuario&gt; QuerySelect(IQueryable&lt;Usuario&gt; pQuery, Usuario usuario)
+        {
+            if (usuario.Id &gt; 0)
+                pQuery = pQuery.Where(u =&gt; u.Id == usuario.Id);
+
+            if (usuario.IdRol &gt; 0)
+                pQuery = pQuery.Where(u =&gt; u.IdRol == usuario.IdRol);
+
+            if (!string.IsNullOrWhiteSpace(usuario.Nombre))
+                pQuery = pQuery.Where(u =&gt; u.Nombre.Contains(usuario.Nombre));
+
+            if (!string.IsNullOrWhiteSpace(usuario.Apellido))
+                pQuery = pQuery.Where(u =&gt; u.Apellido.Contains(usuario.Apellido));
+
+            if (!string.IsNullOrWhiteSpace(usuario.Login))
+                pQuery = pQuery.Where(u =&gt; u.Login.Contains(usuario.Login));
+
+            pQuery = pQuery.OrderByDescending(u =&gt; u.Id).AsQueryable();
+
+            if (usuario.Top_Aux &gt; 0)
+                pQuery = pQuery.Take(usuario.Top_Aux).AsQueryable();
+
+            return pQuery;
+        }
+
+        public static async Task&lt;List&lt;Usuario&gt;&gt; BuscarAsync(Usuario usuario)
+        {
+            var usuarios = new List&lt;Usuario&gt;();
+            using (var contextoDb = new ContextoDb())
+            {
+                var select = contextoDb.Usuarios.AsQueryable();
+                select = QuerySelect(select, usuario);
+                usuarios = await select.ToListAsync();
+            }
+            return usuarios;
+        }
+
+        public static async Task&lt;List&lt;Usuario&gt;&gt; BuscarIncluirRolesAsync(Usuario usuario)
+        {
+            var usuarios = new List&lt;Usuario&gt;();
+            using (var contextoDb = new ContextoDb())
+            {
+                var select = contextoDb.Usuarios.AsQueryable();
+                select = QuerySelect(select, usuario).Include(s =&gt; s.Rol).AsQueryable();
+                usuarios = await select.ToListAsync();
+            }
+
+            return usuarios;
+        }
+
+        public static async Task&lt;Usuario&gt; LoginAsync(Usuario usuario)
+        {
+            var usuarioBd = new Usuario();
+            using (var contextoDb = new ContextoDb())
+            {
+                EncriptarMD5(usuario);
+                usuarioBd = await contextoDb.Usuarios.FirstOrDefaultAsync(s =&gt; s.Login == usuario.Login &amp;&amp;
+                s.Clave == usuario.Clave);
+            }
+            return usuarioBd;
+        }
+
+        public static async Task&lt;int&gt; CambiarClaveAsync(Usuario usuario, string pClaveAnt)
+        {
+            int result = 0;
+            var usuarioPassAnt = new Usuario { Clave = pClaveAnt };
+            EncriptarMD5(usuarioPassAnt);
+            using (var contextoDb = new ContextoDb())
+            {
+                var usuarioBd = await contextoDb.Usuarios.FirstOrDefaultAsync(s =&gt; s.Id == usuario.Id);
+                if (usuarioPassAnt.Clave == usuario.Clave)
+                {
+                    EncriptarMD5(usuario);
+                    usuario.Clave = usuario.Clave;
+                    contextoDb.Update(usuario);
+                    result = await contextoDb.SaveChangesAsync();
+                }
+                else
+                    throw new Exception("La clave actual es incorrecta");
+            }
+            return result;
+        }
+    }
+}</code></pre>
+<h2 class="atx" id="construccion-de-la-capa-de-logica-de-negocio">Construcción de la Capa de Lógica de Negocio</h2>
+<p>Para dar inicio a la construcción de las clases de LogicaDeNegocio, comenzaremos agregando los archivos correspondientes a las clases a construir.</p>
+<ul>
+<li><p>CategoriaBL</p>
+</li>
+<li><p>ProyectoBL</p>
+</li>
+<li><p>TareaBL</p>
+</li>
+<li><p>RolBL</p>
+</li>
+<li><p>UsuarioBL</p>
+</li>
+</ul>
+<p>Cerciorarse de colocar el ámbito **public **a la declaración de cada clase. Ahora codificamos las clases de acuerdo al orden en que creamos los archivos.</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.AccesoADatos;
+using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.LogicaDeNegocio
+{
+    public class CategoriaBL
+    {
+        public async Task&lt;int&gt; CrearAsync(Categoria categoria)
+        {
+            return await CategoriaDAL.CrearAsync(categoria);
+        }
+
+        public async Task&lt;int&gt; ModificarAsync(Categoria categoria)
+        {
+            return await CategoriaDAL.ModificarAsync(categoria);
+        }
+
+        public async Task&lt;int&gt; EliminarAsync(Categoria categoria)
+        {
+            return await CategoriaDAL.EliminarAsync(categoria);
+        }
+
+        public async Task&lt;List&lt;Categoria&gt;&gt; ObtenerTodosAsync()
+        {
+            return await CategoriaDAL.ObtenerTodosAsync();
+        }
+
+        public async Task&lt;Categoria&gt; ObtenerPorIdAsync(Categoria categoria)
+        {
+            return await CategoriaDAL.ObtenerPorIdAsync(categoria);
+        }
+
+        public async Task&lt;List&lt;Categoria&gt;&gt; BuscarAsync(Categoria categoria)
+        {
+            return await CategoriaDAL.BuscarAsync(categoria);
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.AccesoADatos;
+using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.LogicaDeNegocio
+{
+    public class ProyectoBL
+    {
+        public async Task&lt;int&gt; CrearAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.CrearAsync(proyecto);
+        }
+
+        public async Task&lt;int&gt; ModificarAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.ModificarAsync(proyecto);
+        }
+
+        public async Task&lt;int&gt; EliminarAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.EliminarAsync(proyecto);
+        }
+
+        public async Task&lt;List&lt;Proyecto&gt;&gt; ObtenerTodosAsync()
+        {
+            return await ProyectoDAL.ObtenerTodosAsync();
+        }
+
+        public async Task&lt;Proyecto&gt; ObtenerPorIdAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.ObtenerPorIdAsync(proyecto);
+        }
+
+        public async Task&lt;List&lt;Proyecto&gt;&gt; BuscarAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.BuscarAsync(proyecto);
+        }
+
+        public async Task&lt;List&lt;Proyecto&gt;&gt; BuscarIncluirCategoriaAsync(Proyecto proyecto)
+        {
+            return await ProyectoDAL.BuscarIncluirCategoriaAsync(proyecto);
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.AccesoADatos;
+using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.LogicaDeNegocio
+{
+    public class TareaBL
+    {
+        public async Task&lt;int&gt; CrearAsync(Tarea tarea)
+        {
+            return await TareaDAL.CrearAsync(tarea);
+        }
+
+        public async Task&lt;int&gt; ModificarAsync(Tarea tarea)
+        {
+            return await TareaDAL.ModificarAsync(tarea);
+        }
+
+        public async Task&lt;int&gt; CambiarEstadoAsync(Tarea tarea)
+        {
+            return await TareaDAL.CambiarEstadoAsync(tarea);
+        }
+
+        public async Task&lt;int&gt; EliminarAsync(Tarea tarea)
+        {
+            return await TareaDAL.EliminarAsync(tarea);
+        }
+
+        public async Task&lt;List&lt;Tarea&gt;&gt; ObtenerTodosAsync()
+        {
+            return await TareaDAL.ObtenerTodosAsync();
+        }
+
+        public async Task&lt;Tarea&gt; ObtenerPorIdAsync(Tarea tarea)
+        {
+            return await TareaDAL.ObtenerPorIdAsync(tarea);
+        }
+
+        public async Task&lt;List&lt;Tarea&gt;&gt; ObtenerPorIdProyecto(int id)
+        {
+            return await TareaDAL.ObtenerPorIdProyectoAsync(id);
+        }
+
+        public async Task&lt;List&lt;Tarea&gt;&gt; BuscarAsync(Tarea tarea)
+        {
+            return await TareaDAL.BuscarAsync(tarea);
+        }
+
+        public async Task&lt;List&lt;Tarea&gt;&gt; BuscarIncluirProyectoAsync(Tarea tarea)
+        {
+            return await TareaDAL.BuscarIncluirProyectoAsync(tarea);
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.AccesoADatos;
+using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.LogicaDeNegocio
+{
+    public class RolBL
+    {
+        public async Task&lt;int&gt; CrearAsync(Rol rol)
+        {
+            return await RolDAL.CrearAsync(rol);
+        }
+
+        public async Task&lt;int&gt; ModificarAsync(Rol rol)
+        {
+            return await RolDAL.ModificarAsync(rol);
+        }
+
+        public async Task&lt;int&gt; EliminarAsync(Rol rol)
+        {
+            return await RolDAL.EliminarAsync(rol);
+        }
+
+        public async Task&lt;Rol&gt; ObtenerPorIdAsync(Rol rol)
+        {
+            return await RolDAL.ObtenerPorIdAsync(rol);
+        }
+
+        public async Task&lt;List&lt;Rol&gt;&gt; ObtenerTodosAsync()
+        {
+            return await RolDAL.ObtenerTodosAsync();
+        }
+
+        public async Task&lt;List&lt;Rol&gt;&gt; BuscarAsync(Rol rol)
+        {
+            return await RolDAL.BuscarAsync(rol);
+        }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.AccesoADatos;
+using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.LogicaDeNegocio
+{
+    public class UsuarioBL
+    {
+        public async Task&lt;int&gt; CrearAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.CrearAsync(usuario);
+        }
+
+        public async Task&lt;int&gt; ModificarAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.ModificarAsync(usuario);
+        }
+
+        public async Task&lt;int&gt; EliminarAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.EliminarAsync(usuario);
+        }
+
+        public async Task&lt;Usuario&gt; ObtenerPorIdAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.ObtenerPorIdAsync(usuario);
+        }
+
+        public async Task&lt;List&lt;Usuario&gt;&gt; ObtenerTodosAsync()
+        {
+            return await UsuarioDAL.ObtenerTodosAsync();
+        }
+
+        public async Task&lt;List&lt;Usuario&gt;&gt; BuscarAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.BuscarAsync(usuario);
+        }
+
+        public async Task&lt;Usuario&gt; LoginAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.LoginAsync(usuario);
+        }
+
+        public async Task&lt;int&gt; CambiarClaveAsync(Usuario usuario, string pPasswordAnt)
+        {
+            return await UsuarioDAL.CambiarClaveAsync(usuario, pPasswordAnt);
+        }
+
+        public async Task&lt;List&lt;Usuario&gt;&gt; BuscarIncluirRolesAsync(Usuario usuario)
+        {
+            return await UsuarioDAL.BuscarIncluirRolesAsync(usuario);
+        }
+    }
+}</code></pre>
+<h2 class="atx" id="construccion-de-la-capa-webapi">Construcción de la capa WebAPI</h2>
+<p>Para comenzar a trabajar la capa de la WebAPI, necesitamos en primer lugar instalar dos paquetes NuGet, así que entraremos al administrador de paquetes NuGet</p>
+<p><img alt="" src="images/2024-09-09-16-23-21-image.png"></p>
+<p>Una vez dentro, nos cambiamos a la pestaña Examinar y en la búsqueda escribimos lo siguiente: AutoMapper</p>
+<p><img alt="" src="images/2024-09-09-16-25-35-image.png"></p>
+<p>De este paquete podemos instalar la versión más reciente, ya la versión mínima de .NET con que trabaja es la 6.0. Una vez que se completó la instalación de AutoMapper vamos a instalar el paquete:  Microsoft.AspNetCore.Authentication.JwtBearer</p>
+<p><img alt="" src="images/2024-09-09-16-29-36-image.png"></p>
+<p>Para la instalación de este paquete debemos tener cuidado con la versión ya que dependiendo de la versión de .NET con que estemos trabajando así será la versión de este paquete que deberemos instalar.</p>
+<h3 class="atx" id="programacion-de-los-controladores-basicos">Programación de los controladores básicos</h3>
+<p>Comenzaremos programando los controladores básicos, es decir, aquellos que no están vinculados al proceso de authenticación. Comencemos agregando los siguientes controladores al proyecto, tener cuidado de agregar controladores de tipo API, clic derecho sobre la carpeta Controllers, luego en Agregar y del submenú seleccionar controlador.</p>
+<p><img alt="" src="images/2024-09-09-16-35-08-image.png"></p>
+<p>En la siguiente pantalla del lado izquierdo seleccionar API y en la parte central seleccionar Controlador de API: en blanco</p>
+<p><img alt="" src="images/2024-09-09-16-36-47-image.png"></p>
+<p>Luego clic en Agregar, en la siguiente pantalla se nos pedirá el nombre para el controlador, colocamos el siguiente</p>
+<p><img alt="" src="images/2024-09-09-16-38-39-image.png"></p>
+<p>Este proceso nos agregará el primer controlador, hay que repetir el proceso para los otros dos controladores: ProyectoController y TareaController</p>
+<p><img alt="" src="images/2024-09-09-16-41-24-image.png"></p>
+<p>Antes de proceder a codificar estos controladores, necesitamos crear una carpeta en el proyecto, a esta carpeta le daremos el nombre: Dtos, damos clic derecho sobre el proyecto y luego en la opción Agregar y del submenú elegimos: Nueva carpeta</p>
+<p><img alt="" src="images/2024-09-09-16-43-49-image.png"></p>
+<p>Cuando nos pregunte por el nombre le colocamos: Dtos y damos en Agregar</p>
+<img width="368" alt="" src="images/2024-09-09-16-45-31-image.png" title="">
+
+<p>En dicha carpeta crearemos 5 subcarpetas, una por cada Entidad de Negocio que tengamos en el proyecto:</p>
+<ul>
+<li><p>Categoria</p>
+</li>
+<li><p>Proyecto</p>
+</li>
+<li><p>Tarea</p>
+</li>
+<li><p>Rol</p>
+</li>
+<li><p>Usuario</p>
+</li>
+</ul>
+<img width="389" alt="" src="images/2024-09-09-16-48-54-image.png" title="">
+
+<p>Dentro de la carpeta Categoría crearemos 3 clases que serán los que representarán los datos que estará intercambiando el cliente con la API Rest. Las clases serán las siguientes:</p>
+<ul>
+<li><p>CategoriaGuardar.cs</p>
+</li>
+<li><p>CategoriaModificar.cs</p>
+</li>
+<li><p>CategoriaSalida.cs</p>
+</li>
+</ul>
+<h4 class="atx" id="lessimg-srcdouble-quotefilecusersjcappdataroamingmarktextimages2024-09-09-17-02-15-imagepngdouble-quote-titledouble-quotedouble-quote-altdouble-quotedouble-quote-widthdouble-quote396double-quotegreater"><img width="396" alt="" title="" src="file:///C:/Users/JC/AppData/Roaming/marktext/images/2024-09-09-17-02-15-image.png"></h4>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Categoria
+{
+    public class CategoriaGuardar
+    {
+        [Required(ErrorMessage = "El nombre de la categoría es requerido")]
+        public string Nombre { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Categoria
+{
+    public class CategoriaModificar
+    {
+        [Required(ErrorMessage = "El id de la categoría es requerido")]
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "El nombre de la categoría es requerido")]
+        public string Nombre { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">namespace AdminProyectosAPI.WebAPI.Dtos.Categoria
+{
+    public class CategoriaSalida
+    {
+        public int Id { get; set; }
+
+        public string Nombre { get; set; }
+    }
+}</code></pre>
+<h4 class="atx" id="configurar-modelmapper-para-realizar-los-mapeos-entre-los-dtos-de-categoria-y-el-modelo-categoria">Configurar ModelMapper para realizar los mapeos entre los Dtos de Categoria y el modelo Categoria.</h4>
+<p>Lo primero que debemos hacer es crear una nueva carpeta en la raíz del proyecto, a esta carpeta le daremos el nombre: Utilidades</p>
+<img width="320" alt="" title="" src="images/2024-09-09-19-29-21-image.png">
+
+<p>Dentro de esta carpeta crearemos una nueva clase llamada: AutoMapperProfiles</p>
+<img width="332" alt="" title="" src="images/2024-09-09-19-30-41-image.png">
+
+<p>Ingresamos el siguiente código en la clase recién creada</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AutoMapper;
+
+namespace AdminProyectosAPI.WebAPI.Utilidades
+{
+    public class AutoMapperProfiles : Profile
+    {
+        public AutoMapperProfiles()
+        {
+            CreateMap&lt;CategoriaGuardar, Categoria&gt;();
+            CreateMap&lt;CategoriaModificar, Categoria&gt;();
+            CreateMap&lt;Categoria, CategoriaSalida&gt;();
+        }
+    }
+}</code></pre>
+<p>Se puede observar que se declaran los mapeos admitidos entre el modelo y sus correspondientes DTOs. Ahora procedemos a codificar el controlador correspondiente al modelo Categoria.</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.LogicaDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
+namespace AdminProyectosAPI.WebAPI.Controllers
+{
+    [Route("api/categorias")]
+    [ApiController]
+    public class CategoriaController : ControllerBase
+    {
+        private CategoriaBL categoriaBL = new CategoriaBL();
+        private IMapper mapper;
+
+        public CategoriaController(IMapper mapper)
+        {
+            this.mapper = mapper;
+        }
+
+        [HttpGet]
+        public async Task&lt;IEnumerable&lt;CategoriaSalida&gt;&gt; Get()
+        {
+            List&lt;Categoria&gt; categorias = await categoriaBL.ObtenerTodosAsync();
+            return mapper.Map&lt;IEnumerable&lt;CategoriaSalida&gt;&gt;(categorias);
+        }
+
+        [HttpGet("{id}")]
+        public async Task&lt;CategoriaSalida&gt; Get(int id)
+        {
+            Categoria categoria = await categoriaBL.ObtenerPorIdAsync(new Categoria { Id = id });
+            return mapper.Map&lt;CategoriaSalida&gt;(categoria);
+        }
+
+        [HttpPost]
+        public async Task&lt;ActionResult&gt; Post([FromBody] CategoriaGuardar categoriaGuardar)
+        {
+            try
+            {
+                Categoria categoria = mapper.Map&lt;Categoria&gt;(categoriaGuardar);
+                await categoriaBL.CrearAsync(categoria);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task&lt;ActionResult&gt; Put(int id, [FromBody] CategoriaModificar categoriaModificar)
+        {
+
+            if (categoriaModificar.Id == id)
+            {
+                Categoria categoria = mapper.Map&lt;Categoria&gt;(categoriaModificar);
+                await categoriaBL.ModificarAsync(categoria);
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task&lt;ActionResult&gt; Delete(int id)
+        {
+            try
+            {
+                await categoriaBL.EliminarAsync(new Categoria { Id = id });
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost("Buscar")]
+        public async Task&lt;List&lt;CategoriaSalida&gt;&gt; Buscar([FromBody] object pCategoria)
+        {
+            var option = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            string strCategoria = JsonSerializer.Serialize(pCategoria);
+            Categoria categoria = JsonSerializer.Deserialize&lt;Categoria&gt;(strCategoria, option);
+            List&lt;Categoria&gt; categorias = await categoriaBL.BuscarAsync(categoria);
+            return mapper.Map&lt;List&lt;CategoriaSalida&gt;&gt;(categorias);
+        }
+    }
+}</code></pre>
+<p>Antes de proceder a probar los endpoints correspondientes al modelo Categoria, debemos dar de alta el servicio de ModelMapper en el archivo Program.cs</p>
+<p><img alt="" src="images/2024-09-09-19-38-42-image.png"></p>
+<h3 class="atx" id="prueba-de-los-endpoints-de-categoriacontroller">Prueba de los endpoints de CategoriaController</h3>
+<p>Ejecutamos el proyecto y verificamos que Swagger nos muestre la lista de endpoints correspondientes a CategoriaController</p>
+<p><img alt="" src="images/2024-09-09-19-41-42-image.png"></p>
+<p>Debemos ejecutar al menos una prueba en cada endpoint.</p>
+<h3 class="atx" id="construccion-de-los-endpoints-para-el-modelo-proyecto">Construcción de los endpoints para el modelo Proyecto</h3>
+<p>Comenzaremos el desarrollo, agregando los DTOs necesarios, primero nos dirigimos a la carpeta Dtos en la raíz del proyecto, luego a la subcarpeta Proyecto y en ella agregamos las siguientes clases:</p>
+<ul>
+<li><p>ProyectoGuardar.cs</p>
+</li>
+<li><p>ProyectoModificar.cs</p>
+</li>
+<li><p>ProyectoSalida.cs</p>
+</li>
+</ul>
+<img width="345" alt="" title="" src="images/2024-09-09-20-30-15-image.png">
+
+<p>Procedemos a codificar cada una de estas clases.</p>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Proyecto
+{
+    public class ProyectoGuardar
+    {
+        [Required(ErrorMessage = "El Id de la categoría es requerido")]
+        public int IdCategoria { get; set; }
+
+        [Required(ErrorMessage = "El título es requerido")]
+        public string Titulo { get; set; }
+
+        [Required(ErrorMessage = "La descripción es requerida")]
+        public string Descripcion { get; set; }
+
+        [Required(ErrorMessage = "La fecha de inicio es requerida")]
+        public string FechaInicio { get; set; }
+
+        [Required(ErrorMessage = "La fecha de finalización es requerida")]
+        public string FechaFin { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Proyecto
+{
+    public class ProyectoModificar
+    {
+        [Required(ErrorMessage = "El Id del proyecto es requerido")]
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "El Id de la categoría es requerido")]
+        public int IdCategoria { get; set; }
+
+        [Required(ErrorMessage = "El título es requerido")]
+        public string Titulo { get; set; }
+
+        [Required(ErrorMessage = "La descripción es requerida")]
+        public string Descripcion { get; set; }
+
+        [Required(ErrorMessage = "La fecha de inicio es requerida")]
+        public string FechaInicio { get; set; }
+
+        [Required(ErrorMessage = "La fecha de finalización es requerida")]
+        public string FechaFin { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Proyecto
+{
+    public class ProyectoSalida
+    {
+        public int Id { get; set; }
+
+        public string? Titulo { get; set; }
+
+        public string? Descripcion { get; set; }
+
+        public DateOnly FechaInicio { get; set; }
+
+        public DateOnly FechaFin { get; set; }
+
+        public CategoriaSalida Categoria { get; set; }
+    }
+}</code></pre>
+<p>A continuación agregaremos en la clase ModelMapperProfiles, las líneas correspondientes a los mapeos entre el modelo Proyecto y sus DTOs</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+using AutoMapper;
+
+namespace AdminProyectosAPI.WebAPI.Utilidades
+{
+    public class AutoMapperProfiles : Profile
+    {
+        public AutoMapperProfiles()
+        {
+            CreateMap&lt;CategoriaGuardar, Categoria&gt;();
+            CreateMap&lt;CategoriaModificar, Categoria&gt;();
+            CreateMap&lt;Categoria, CategoriaSalida&gt;();
+
+            CreateMap&lt;ProyectoGuardar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;ProyectoModificar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;Proyecto, ProyectoSalida&gt;();
+        }
+    }
+}</code></pre>
+<p>En los mapeos para Guardar y Modificar vemos que hay configuraciones adicionales, esto se debe a que la fecha se captura como String y el modelo la debe recibir como DateOnly, por ello se ignora el mapeo de dichas propiedades y será en el controlador donde se hagan las conversiones necesarias.</p>
+<p>A continuación vemos la codificación del ProyectoController</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.LogicaDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+using AutoMapper;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
+namespace AdminProyectosAPI.WebAPI.Controllers
+{
+    [Route("api/proyectos")]
+    [ApiController]
+    public class ProyectoController : ControllerBase
+    {
+        private ProyectoBL proyectoBL = new ProyectoBL();
+        private IMapper mapper;
+
+        public ProyectoController(IMapper mapper)
+        {
+            this.mapper = mapper;
+        }
+
+        [HttpGet]
+        public async Task&lt;IEnumerable&lt;ProyectoSalida&gt;&gt; Get()
+        {
+            List&lt;Proyecto&gt; proyectos = await proyectoBL.ObtenerTodosAsync();
+            return mapper.Map&lt;IEnumerable&lt;ProyectoSalida&gt;&gt;(proyectos);
+        }
+
+        [HttpGet("{id}")]
+        public async Task&lt;ProyectoSalida&gt; Get(int id)
+        {
+            Proyecto proyecto = await proyectoBL.ObtenerPorIdAsync(new Proyecto { Id = id });
+            return mapper.Map&lt;ProyectoSalida&gt;(proyecto);
+        }
+
+        [HttpPost]
+        public async Task&lt;ActionResult&gt; Post([FromBody] ProyectoGuardar proyectoGuardar)
+        {
+            try
+            {
+                DateOnly fechaInicio = DateOnly.Parse(proyectoGuardar.FechaInicio);
+                DateOnly fechaFin = DateOnly.Parse(proyectoGuardar.FechaFin);
+                Proyecto proyecto = mapper.Map&lt;Proyecto&gt;(proyectoGuardar);
+                proyecto.FechaInicio = fechaInicio;
+                proyecto.FechaFin = fechaFin;
+                await proyectoBL.CrearAsync(proyecto);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task&lt;ActionResult&gt; Put(int id, [FromBody] ProyectoModificar proyectoModificar)
+        {
+
+            if (proyectoModificar.Id == id)
+            {
+                DateOnly fechaInicio = DateOnly.Parse(proyectoModificar.FechaInicio);
+                DateOnly fechaFin = DateOnly.Parse(proyectoModificar.FechaFin);
+                Proyecto proyecto = mapper.Map&lt;Proyecto&gt;(proyectoModificar);
+                proyecto.FechaInicio = fechaInicio;
+                proyecto.FechaFin = fechaFin;
+                await proyectoBL.ModificarAsync(proyecto);
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task&lt;ActionResult&gt; Delete(int id)
+        {
+            try
+            {
+                await proyectoBL.EliminarAsync(new Proyecto { Id = id });
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost("Buscar")]
+        public async Task&lt;List&lt;ProyectoSalida&gt;&gt; Buscar([FromBody] object pProyecto)
+        {
+            var option = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            string strProyecto = JsonSerializer.Serialize(pProyecto);
+            Proyecto proyecto = JsonSerializer.Deserialize&lt;Proyecto&gt;(strProyecto, option);
+            List&lt;Proyecto&gt; proyectos = await proyectoBL.BuscarIncluirCategoriaAsync(proyecto);
+            return mapper.Map&lt;List&lt;ProyectoSalida&gt;&gt;(proyectos);
+        }
+    }
+}</code></pre>
+<h3 class="atx" id="prueba-de-los-endpoints-del-modelo-proyecto">Prueba de los endpoints del modelo Proyecto</h3>
+<p>Procedemos a ejecutar el proyecto y vamos a ejecutar al menos una prueba en cada uno de los endpoints del controlador.</p>
+<p><img alt="" src="images/2024-09-09-20-45-48-image.png"></p>
+<p><img alt="" src="images/2024-09-09-20-46-19-image.png"></p>
+<h3 class="atx" id="construccion-de-los-endpoints-del-modelo-tarea">Construcción de los endpoints del modelo Tarea</h3>
+<p>Comenzaremos el desarrollo de los endpoints del modelo Tarea, construyendo los DTOs relacionados al modelo Tarea. Lo primero que haremos es dirigirnos a la carpeta Dtos y luego a la subcarpeta Tarea y en ella crearemos las siguientes clases:</p>
+<ul>
+<li><p>TareaGuardar.cs</p>
+</li>
+<li><p>TareaModificar.cs</p>
+</li>
+<li><p>TareaSalida.cs</p>
+</li>
+<li><p>TareaCambiarEstado.cs</p>
+</li>
+</ul>
+<img width="323" alt="" title="" src="images/2024-09-10-14-24-56-image.png">
+
+<p>Ahora vamos al código</p>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Tarea
+{
+    public class TareaGuardar
+    {
+        [Required(ErrorMessage = "El id de proyecto es requerido")]
+        public int IdProyecto { get; set; }
+
+        [Required(ErrorMessage = "El nombre es requerido")]
+        public string Nombre { get; set; }
+
+        [Required(ErrorMessage = "La descripción es requerida")]
+        public string Descripcion { get; set; }
+
+        [Required(ErrorMessage = "La duración es requerida")]
+        public string Duracion { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Tarea
+{
+    public class TareaModificar
+    {
+        [Required(ErrorMessage = "El id del proyecto es requerido")]
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "El id de proyecto es requerido")]
+        public int IdProyecto { get; set; }
+
+        [Required(ErrorMessage = "El nombre es requerido")]
+        public string Nombre { get; set; }
+
+        [Required(ErrorMessage = "La descripción es requerida")]
+        public string Descripcion { get; set; }
+
+        [Required(ErrorMessage = "La duración es requerida")]
+        public string Duracion { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Tarea
+{
+    public class TareaSalida
+    {
+        public int Id { get; set; }
+
+        public string Nombre { get; set; }
+
+        public string Descripcion { get; set; }
+
+        public string Duracion { get; set; }
+
+        public string Estado { get; set; }
+
+        public ProyectoSalida Proyecto { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Tarea
+{
+    public class TareaCambiarEstado
+    {
+        [Required]
+        public int Id { get; set; }
+
+        [Required]
+        public string Estado { get; set; }
+    }
+}</code></pre>
+<p>A continuación agregaremos en la clase ModelMapperProfiles, las líneas correspondientes a los mapeos entre el modelo Tarea y sus DTOs</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+using AdminProyectosAPI.WebAPI.Dtos.Tarea;
+using AutoMapper;
+
+namespace AdminProyectosAPI.WebAPI.Utilidades
+{
+    public class AutoMapperProfiles : Profile
+    {
+        public AutoMapperProfiles()
+        {
+            // mapeos del model Categoria y sus DTOs
+            CreateMap&lt;CategoriaGuardar, Categoria&gt;();
+            CreateMap&lt;CategoriaModificar, Categoria&gt;();
+            CreateMap&lt;Categoria, CategoriaSalida&gt;();
+
+            // mapeos del model Proyecto y sus DTOs
+            CreateMap&lt;ProyectoGuardar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;ProyectoModificar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;Proyecto, ProyectoSalida&gt;();
+
+            // mapeos del model Tarea y sus DTOs
+            CreateMap&lt;TareaGuardar, Tarea&gt;();
+            CreateMap&lt;TareaModificar, Tarea&gt;();
+            CreateMap&lt;Tarea, TareaSalida&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; ((Estado_Tarea)src.Estado).ToString()));
+            CreateMap&lt;TareaCambiarEstado, Tarea&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; (int)Enum.Parse(typeof(Estado_Tarea), src.Estado)));
+        }
+    }
+}</code></pre>
+<p>Podemos ver en los mapeos que se configura opciones adicionales en los mapeos ya que en la base de datos guardamos un número entero y al usuario le mostramos un texto, de igual manera para solicitar el estado pedimos una cadena y ésta debe ser cambiada al número correspondiente.</p>
+<p>Ahora vamos con el TareaController</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.LogicaDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Tarea;
+using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
+namespace AdminProyectosAPI.WebAPI.Controllers
+{
+    [Route("api/tareas")]
+    [ApiController]
+    public class TareaController : ControllerBase
+    {
+        private TareaBL tareaBL = new TareaBL();
+        private IMapper mapper;
+
+        public TareaController(IMapper mapper)
+        {
+            this.mapper = mapper;
+        }
+
+        [HttpGet]
+        public async Task&lt;IEnumerable&lt;TareaSalida&gt;&gt; Get()
+        {
+            List&lt;Tarea&gt; tareas = await tareaBL.ObtenerTodosAsync();
+            return mapper.Map&lt;List&lt;TareaSalida&gt;&gt;(tareas);
+        }
+
+        [HttpGet("{id}")]
+        public async Task&lt;TareaSalida&gt; Get(int id)
+        {
+            Tarea tarea = await tareaBL.ObtenerPorIdAsync(new Tarea { Id = id });
+            return mapper.Map&lt;TareaSalida&gt;(tarea);
+        }
+
+        [HttpGet("/api/tareas/proyecto/{id}")]
+        public async Task&lt;IEnumerable&lt;TareaSalida&gt;&gt; GetByProject(int id)
+        {
+            List&lt;Tarea&gt; tareas = await tareaBL.ObtenerPorIdProyecto(id);
+            return mapper.Map&lt;IEnumerable&lt;TareaSalida&gt;&gt;(tareas);
+        }
+
+        [HttpPost]
+        public async Task&lt;ActionResult&gt; Post([FromBody] TareaGuardar tareaGuardar)
+        {
+            try
+            {
+                Tarea tarea = mapper.Map&lt;Tarea&gt;(tareaGuardar);
+                await tareaBL.CrearAsync(tarea);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task&lt;ActionResult&gt; Put(int id, [FromBody] TareaModificar tareaModificar)
+        {
+
+            if (tareaModificar.Id == id)
+            {
+                Tarea tarea = mapper.Map&lt;Tarea&gt;(tareaModificar);
+                await tareaBL.ModificarAsync(tarea);
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPatch]
+        public async Task&lt;ActionResult&gt; Patch(TareaCambiarEstado tareaCambiarEstado)
+        {
+            try
+            {
+                Tarea tarea = mapper.Map&lt;Tarea&gt;(tareaCambiarEstado);
+                await tareaBL.CambiarEstadoAsync(tarea);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task&lt;ActionResult&gt; Delete(int id)
+        {
+            try
+            {
+                await tareaBL.EliminarAsync(new Tarea { Id = id });
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost("Buscar")]
+        public async Task&lt;List&lt;TareaSalida&gt;&gt; Buscar([FromBody] object pTarea)
+        {
+            var option = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            string strTarea = JsonSerializer.Serialize(pTarea);
+            Tarea tarea = JsonSerializer.Deserialize&lt;Tarea&gt;(strTarea, option);
+            List&lt;Tarea&gt; tareas = await tareaBL.BuscarIncluirProyectoAsync(tarea);
+            return mapper.Map&lt;List&lt;TareaSalida&gt;&gt;(tareas);
+        }
+    }
+}</code></pre>
+<h3 class="atx" id="prueba-de-los-endpoints-del-model-tarea">Prueba de los endpoints del model Tarea</h3>
+<p><img alt="" src="images/2024-09-10-14-34-35-image.png"></p>
+<p><img alt="" src="images/2024-09-10-14-35-03-image.png"></p>
+<p><img alt="" src="images/2024-09-10-14-35-31-image.png"></p>
+<p>Asegurarse que ejecutar al menos una prueba en cada uno de los endpoints del controlador TareaController.</p>
+<h2 class="atx" id="aplicacion-del-proceso-de-autenticacion-mediante-tokens-jwt">Aplicación del proceso de autenticación mediante Tokens JWT.</h2>
+<p>Para comenzar el proceso de implementación de seguridad los primero que haremos es crear una nueva carpeta en la raíz del proyecto, a esta carpeta le daremos el nombre: Auth</p>
+<img width="332" alt="" src="images/2024-09-10-14-39-25-image.png" title="">
+
+<p>Dentro de esta carpeta agregaremos los siguientes elementos:</p>
+<ul>
+<li><p>IJwtAuthenticationService.cs --&gt; Interface</p>
+</li>
+<li><p>IJwtAuthenticationService.cs --&gt; Clase que implementa la interface</p>
+</li>
+</ul>
+<p>Procedemos a la codificación de la interface:</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+
+namespace AdminProyectosAPI.WebAPI.Auth
+{
+    public interface IJwtAuthenticationService
+    {
+        string Authenticate(Usuario usuario);
+    }
+}</code></pre>
+<p>Ahora codificamos la clase que implementa a la interface:</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+namespace AdminProyectosAPI.WebAPI.Auth
+{
+    public class JwtAuthenticationService : IJwtAuthenticationService
+    {
+        private readonly string key;
+
+        public JwtAuthenticationService(string key)
+        {
+            this.key = key;
+        }
+
+        public string Authenticate(Usuario usuario)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var tokenKey = Encoding.ASCII.GetBytes(key);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new Claim[]
+                {
+                    new Claim(ClaimTypes.Name, usuario.Login)
+                }),
+                Expires = DateTime.UtcNow.AddHours(8),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey),
+                SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+    }
+}</code></pre>
+<p>Ahora modificaremos el archivo Program.cs para incorporar la configuración necesaria para trabajar con los tokens JWT</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.WebAPI.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Services.AddControllers();
+
+builder.Services.AddEndpointsApiExplorer();
+
+// CONFIGURAR SWAGGER PARA TRABAJAR CON AUTENTICACIÓN CON TOKENS JWT
+builder.Services.AddSwaggerGen(c =&gt;
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Gestión de Proyectos", Version = "v1" });
+
+    // *** Incluir  JWT Authentication ***
+    var jwtSecurityScheme = new OpenApiSecurityScheme
+    {
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Name = "JWT Authentication",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Description = "Ingresar tu token de JWT Authentication",
+
+        Reference = new OpenApiReference
+        {
+            Id = JwtBearerDefaults.AuthenticationScheme,
+            Type = ReferenceType.SecurityScheme
+        }
+    };
+    c.AddSecurityDefinition(jwtSecurityScheme.Reference.Id, jwtSecurityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement { { jwtSecurityScheme, Array.Empty&lt;string&gt;() } });
+    // ******************************************
+});
+
+// CONFIGURAR POLITICAS DE AUTENTICACIÓN
+builder.Services.AddAuthorization(options =&gt;
+{
+    options.AddPolicy("LoggedInPolice", policy =&gt;
+    {
+        policy.RequireAuthenticatedUser();
+    });
+});
+
+// CLAVE SECRETA PARA FIRMAR LOS TOKENS
+var key = "4s9tORbMKcRa1JHx7qcCBn8iPgfFCL7zZ+ksykX5VSan2+vsmlHvjWdcWWTpOLFjJyNUbogaOIXD//L/lZdqmg==";
+
+// CONFIGURACIÓN DE LOS TOKENS JWT
+builder.Services
+ .AddAuthentication(x =&gt;
+ {
+     // Configurar la autentificaion de JWT por defecto en la Web API
+     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+     x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+ })
+  .AddJwtBearer(x =&gt;
+  {
+      // Agregar las configuracion por defecto al JWT
+      x.RequireHttpsMetadata = false;
+      x.SaveToken = true;
+      x.TokenValidationParameters = new TokenValidationParameters
+      {
+          IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(key)),
+          ValidateAudience = false,
+          ValidateIssuerSigningKey = true,
+          ValidateIssuer = false
+      };
+  });
+
+// APLICAR LA INYECCIÓN DE DEPENDENCIAS PARA JWT
+builder.Services.AddSingleton&lt;IJwtAuthenticationService&gt;(new JwtAuthenticationService(key));
+
+// ESTABLECER EL ALCANCE DE LOS MAPEOS DE AutoMapper
+builder.Services.AddAutoMapper(typeof(Program));
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+// AGREGAR EL SERVICIO DE AUTENTICACIÓN
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();</code></pre>
+<p>Lo siguiente es codificar los controladores para los modelos: Rol y Usuario, comenzaremos con el controlador Rol.</p>
+<h4 class="atx" id="construccion-de-endpoints-para-el-modelo-rol">Construcción de endpoints para el modelo Rol</h4>
+<p>Este desarrollo lo comenzaremos construyendo los DTOs necesarios, buscamos la carpeta Dtos y luego en la subcarpeta Rol y en esa carpeta creamos las siguientes clases:</p>
+<ul>
+<li><p>RolGuardar.cs</p>
+</li>
+<li><p>RolModificar.cs</p>
+</li>
+<li><p>RolSalida.cs</p>
+</li>
+</ul>
+<img width="307" alt="" title="" src="images/2024-09-10-17-01-06-image.png">
+
+<p>Ahora vamos a la codificación de los Dtos.</p>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Rol
+{
+    public class RolGuardar
+    {
+        [Required(ErrorMessage = "El nombre del rol es requerido")]
+        public string Nombre { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Rol
+{
+    public class RolModificar
+    {
+        [Required(ErrorMessage = "El id del rol es requerido")]
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "El nombre del rol es requerido")]
+        public string Nombre { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">namespace AdminProyectosAPI.WebAPI.Dtos.Rol
+{
+    public class RolSalida
+    {
+        public int Id { get; set; }
+        public string nombre { get; set; }
+    }
+}</code></pre>
+<p>Ya que tenemos los DTOs, necesitamos configurar los mapeos en la clase de configuración de AutoMapper.</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+using AdminProyectosAPI.WebAPI.Dtos.Rol;
+using AdminProyectosAPI.WebAPI.Dtos.Tarea;
+using AutoMapper;
+
+namespace AdminProyectosAPI.WebAPI.Utilidades
+{
+    public class AutoMapperProfiles : Profile
+    {
+        public AutoMapperProfiles()
+        {
+            // mapeos del modelo Rol y sus DTOs
+            CreateMap&lt;RolGuardar, Rol&gt;();
+            CreateMap&lt;RolModificar, Rol&gt;();
+            CreateMap&lt;Rol, RolSalida&gt;();
+
+            // mapeos del model Categoria y sus DTOs
+            CreateMap&lt;CategoriaGuardar, Categoria&gt;();
+            CreateMap&lt;CategoriaModificar, Categoria&gt;();
+            CreateMap&lt;Categoria, CategoriaSalida&gt;();
+
+            // mapeos del model Proyecto y sus DTOs
+            CreateMap&lt;ProyectoGuardar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;ProyectoModificar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;Proyecto, ProyectoSalida&gt;();
+
+            // mapeos del model Tarea y sus DTOs
+            CreateMap&lt;TareaGuardar, Tarea&gt;();
+            CreateMap&lt;TareaModificar, Tarea&gt;();
+            CreateMap&lt;Tarea, TareaSalida&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; ((Estado_Tarea)src.Estado).ToString()));
+            CreateMap&lt;TareaCambiarEstado, Tarea&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; (int)Enum.Parse(typeof(Estado_Tarea), src.Estado)));
+        }
+    }
+}</code></pre>
+<p>Ahora vamos con la codificación del RolController</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.LogicaDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Rol;
+using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
+namespace AdminProyectosAPI.WebAPI.Controllers
+{
+    [Route("api/roles")]
+    [ApiController]
+    public class RolController : ControllerBase
+    {
+        private RolBL rolBL = new RolBL();
+        private IMapper mapper;
+
+        public RolController(IMapper mapper)
+        {
+            this.mapper = mapper;
+        }
+
+        [HttpGet]
+        public async Task&lt;IEnumerable&lt;RolSalida&gt;&gt; Get()
+        {
+            List&lt;Rol&gt; roles = await rolBL.ObtenerTodosAsync();
+            return mapper.Map&lt;IEnumerable&lt;RolSalida&gt;&gt;(roles);
+        }
+
+        [HttpGet("{id}")]
+        public async Task&lt;RolSalida&gt; Get(int id)
+        {
+            Rol rol = await rolBL.ObtenerPorIdAsync(new Rol { Id = id });
+            return mapper.Map&lt;RolSalida&gt;(rol);
+        }
+
+        [HttpPost]
+        public async Task&lt;ActionResult&gt; Post([FromBody] RolGuardar rolGuardar)
+        {
+            try
+            {
+                Rol rol = mapper.Map&lt;Rol&gt;(rolGuardar);
+                await rolBL.CrearAsync(rol);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task&lt;ActionResult&gt; Put(int id, [FromBody] RolModificar rolModificar)
+        {
+            if (rolModificar.Id == id)
+            {
+                Rol rol = mapper.Map&lt;Rol&gt;(rolModificar);
+                await rolBL.ModificarAsync(rol);
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task&lt;ActionResult&gt; Delete(int id)
+        {
+            try
+            {
+                await rolBL.EliminarAsync(new Rol { Id = id });
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost("Buscar")]
+        public async Task&lt;List&lt;RolSalida&gt;&gt; Buscar([FromBody] object pRol)
+        {
+            var option = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            string strRol = JsonSerializer.Serialize(pRol);
+            Rol rol = JsonSerializer.Deserialize&lt;Rol&gt;(strRol, option);
+            List&lt;Rol&gt; roles = await rolBL.BuscarAsync(rol);
+            return mapper.Map&lt;List&lt;RolSalida&gt;&gt;(roles);
+        }
+    }
+}</code></pre>
+<h4 class="atx" id="prueba-de-los-endpoints-del-modelo-rol">Prueba de los endpoints del modelo Rol</h4>
+<p><img alt="" src="images/2024-09-10-19-32-27-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-33-00-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-33-28-image.png"></p>
+<p>Asegurarse de ejecutar al menos una vez cada endpoint correspondiente al controlador RolController.</p>
+<h3 class="atx" id="construccion-de-los-endpoints-para-el-modelo-usuario">Construcción de los endpoints para el modelo Usuario</h3>
+<p>Este proceso lo comenzaremos creando los DTOs que nos permitan manejar los datos con que trabaja el cliente.</p>
+<img width="306" alt="" title="" src="images/2024-09-10-19-43-15-image.png">
+
+<p>Ya que las clases fueron creadas procedemos a codificarlas.</p>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Usuario
+{
+    public class UsuarioGuardar
+    {
+        [Required(ErrorMessage = "El rol es requerido")]
+        public int IdRol { get; set; }
+
+        [Required(ErrorMessage = "El nombre es requerido")]
+        public string Nombre { get; set; }
+
+        [Required(ErrorMessage = "El apellido es requerido")]
+        public string Apellido { get; set; }
+
+        [Required(ErrorMessage = "El teléfono es requerido")]
+        public string Telefono { get; set; }
+
+        [Required(ErrorMessage = "El nombre de usuario es requerido")]
+        public string Login { get; set; }
+
+        [Required(ErrorMessage = "La clave es requerida")]
+        public string Clave { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Usuario
+{
+    public class UsuarioModificar
+    {
+        [Required]
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "El rol es requerido")]
+        public int IdRol { get; set; }
+
+        [Required(ErrorMessage = "El nombre es requerido")]
+        public string Nombre { get; set; }
+
+        [Required(ErrorMessage = "El apellido es requerido")]
+        public string Apellido { get; set; }
+
+        [Required(ErrorMessage = "El teléfono es requerido")]
+        public string Telefono { get; set; }
+
+        [Required(ErrorMessage = "El nombre de usuario es requerido")]
+        public string Login { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.WebAPI.Dtos.Rol;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Usuario
+{
+    public class UsuarioSalida
+    {
+        public string Nombre { get; set; }
+
+        public string Apellido { get; set; }
+
+        public string Telefono { get; set; }
+
+        public string Login { get; set; }
+
+        public RolSalida Rol { get; set; }
+    }
+}</code></pre>
+<pre><code class="fenced-code-block language-C#">using System.ComponentModel.DataAnnotations;
+
+namespace AdminProyectosAPI.WebAPI.Dtos.Usuario
+{
+    public class UsuarioLogin
+    {
+        [Required]
+        public string Login { get; set; }
+
+        [Required]
+        public string Clave { get; set; }
+    }
+}
+&nbsp;&nbsp;&nbsp;&nbsp;</code></pre>
+<p>Ahora procedemos a configurar los mapeos entre el modelo Usuario y sus correspondientes DTOs</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.WebAPI.Dtos.Categoria;
+using AdminProyectosAPI.WebAPI.Dtos.Proyecto;
+using AdminProyectosAPI.WebAPI.Dtos.Rol;
+using AdminProyectosAPI.WebAPI.Dtos.Tarea;
+using AdminProyectosAPI.WebAPI.Dtos.Usuario;
+using AutoMapper;
+
+namespace AdminProyectosAPI.WebAPI.Utilidades
+{
+    public class AutoMapperProfiles : Profile
+    {
+        public AutoMapperProfiles()
+        {
+            // mapeos del modelo Rol y sus DTOs
+            CreateMap&lt;RolGuardar, Rol&gt;();
+            CreateMap&lt;RolModificar, Rol&gt;();
+            CreateMap&lt;Rol, RolSalida&gt;();
+
+            // mapeos del modelo Usuario y sus DTOs
+            CreateMap&lt;UsuarioGuardar, Usuario&gt;();
+            CreateMap&lt;UsuarioModificar, Usuario&gt;();
+            CreateMap&lt;UsuarioLogin, Usuario&gt;();
+            CreateMap&lt;Usuario, UsuarioSalida&gt;();
+
+            // mapeos del model Categoria y sus DTOs
+            CreateMap&lt;CategoriaGuardar, Categoria&gt;();
+            CreateMap&lt;CategoriaModificar, Categoria&gt;();
+            CreateMap&lt;Categoria, CategoriaSalida&gt;();
+
+            // mapeos del model Proyecto y sus DTOs
+            CreateMap&lt;ProyectoGuardar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;ProyectoModificar, Proyecto&gt;()
+                .ForMember(p =&gt; p.FechaInicio, opt =&gt; opt.Ignore())
+                .ForMember(p =&gt; p.FechaFin, opt =&gt; opt.Ignore());
+            CreateMap&lt;Proyecto, ProyectoSalida&gt;();
+
+            // mapeos del model Tarea y sus DTOs
+            CreateMap&lt;TareaGuardar, Tarea&gt;();
+            CreateMap&lt;TareaModificar, Tarea&gt;();
+            CreateMap&lt;Tarea, TareaSalida&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; ((Estado_Tarea)src.Estado).ToString()));
+            CreateMap&lt;TareaCambiarEstado, Tarea&gt;()
+            .ForMember(t =&gt; t.Estado, opt =&gt; opt.MapFrom(src =&gt; (int)Enum.Parse(typeof(Estado_Tarea), src.Estado)));
+        }
+    }
+}</code></pre>
+<p>Finalmente procedemos a codificar el controlador UsuarioController.</p>
+<pre><code class="fenced-code-block language-C#">using AdminProyectosAPI.EntidadesDeNegocio;
+using AdminProyectosAPI.LogicaDeNegocio;
+using AdminProyectosAPI.WebAPI.Auth;
+using AdminProyectosAPI.WebAPI.Dtos.Usuario;
+using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+
+namespace AdminProyectosAPI.WebAPI.Controllers
+{
+    [Route("api/usuarios")]
+    [ApiController]
+    public class UsuarioController : ControllerBase
+    {
+        private UsuarioBL usuarioBL = new UsuarioBL();
+
+        // Inyección de dependencias para agregar la seguridad JWT
+        private readonly IJwtAuthenticationService authService;
+        private readonly IMapper mapper;
+
+        public UsuarioController(IJwtAuthenticationService pAuthService, IMapper mapper)
+        {
+            authService = pAuthService;
+            this.mapper = mapper;
+        }
+
+        [HttpGet]
+        public async Task&lt;IEnumerable&lt;UsuarioSalida&gt;&gt; Get()
+        {
+            List&lt;Usuario&gt; usuarios = await usuarioBL.ObtenerTodosAsync();
+            return mapper.Map&lt;IEnumerable&lt;UsuarioSalida&gt;&gt;(usuarios);
+        }
+
+        [HttpGet("{id}")]
+        public async Task&lt;UsuarioSalida&gt; Get(int id)
+        {
+            Usuario usuario = await usuarioBL.ObtenerPorIdAsync(new Usuario { Id = id });
+            return mapper.Map&lt;UsuarioSalida&gt;(usuario);
+        }
+
+        [HttpPost]
+        public async Task&lt;ActionResult&gt; Post([FromBody] UsuarioGuardar usuarioGuardar)
+        {
+            try
+            {
+                Usuario usuario = mapper.Map&lt;Usuario&gt;(usuarioGuardar);
+                await usuarioBL.CrearAsync(usuario);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task&lt;ActionResult&gt; Put(int id, [FromBody] UsuarioModificar usuarioModificar)
+        {
+            if (usuarioModificar.Id == id)
+            {
+                Usuario usuario = mapper.Map&lt;Usuario&gt;(usuarioModificar);
+                await usuarioBL.ModificarAsync(usuario);
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task&lt;ActionResult&gt; Delete(int id)
+        {
+            try
+            {
+                await usuarioBL.EliminarAsync(new Usuario { Id = id });
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpPost("Buscar")]
+        public async Task&lt;List&lt;UsuarioSalida&gt;&gt; Buscar([FromBody] object pUsuario)
+        {
+            var option = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            string strUsuario = JsonSerializer.Serialize(pUsuario);
+            Usuario usuario = JsonSerializer.Deserialize&lt;Usuario&gt;(strUsuario, option);
+            var usuarios = await usuarioBL.BuscarIncluirRolesAsync(usuario);
+            usuarios.ForEach(s =&gt; s.Rol.Usuarios = null); // Evitar la redundacia de datos
+            return mapper.Map&lt;List&lt;UsuarioSalida&gt;&gt;(usuarios);
+        }
+
+        [HttpPost("Login")]
+        [AllowAnonymous]
+        public async Task&lt;ActionResult&gt; Login([FromBody] UsuarioLogin usuarioLogin)
+        {
+            Usuario usuario = mapper.Map&lt;Usuario&gt;(usuarioLogin);
+            // codigo para autorizar el usuario por JWT
+            Usuario usuario_auth = await usuarioBL.LoginAsync(usuario);
+            if (usuario_auth != null &amp;&amp; usuario_auth.Id &gt; 0 &amp;&amp; usuario.Login == usuario_auth.Login)
+            {
+                var token = authService.Authenticate(usuario_auth);
+                return Ok(token);
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
+    }
+}</code></pre>
+<h3 class="atx" id="configurar-la-seguridad-en-cada-uno-de-los-controladores">Configurar la seguridad en cada uno de los controladores.</h3>
+<p>Para aplicar la configuración de seguridad en cada uno de los controladores, procederemos a agregar la siguiente anotación en la definición de la clase.</p>
+<p><img alt="" src="images/2024-09-10-19-51-37-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-52-26-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-53-08-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-53-46-image.png"></p>
+<p><img alt="" src="images/2024-09-10-19-54-26-image.png"></p>
+<p>Para cerrar el desarrollo del proyecto, procederemos a probar los endpoints correspondientes al modelo Usuario.</p>
+<h3 class="atx" id="prueba-de-los-endpoints-del-controlador-usuariocontroller">Prueba de los endpoints del controlador UsuarioController.</h3>
+<p><img alt="" src="images/2024-09-10-19-56-39-image.png"></p>
+<p>No olvidar que se debe ejecutar al menos una vez cada uno de los endpoints de este controlador.</p>
+<p>Con esto ponemos fin al desarrollo de este proyecto de ejemplo, buena suerte con sus desarrollos.</p>
+</article>
+</body>
+</html>
